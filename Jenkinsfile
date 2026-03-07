@@ -16,21 +16,40 @@ pipeline {
     stage('Checkout') {
       steps {
         script {
-          try {
-            checkout([
-              $class: 'GitSCM',
-              branches: [[name: '*/main']],
-              userRemoteConfigs: [[
-                url: "${env.GIT_REPO_URL}",
-                credentialsId: "${env.GITHUB_CREDENTIALS_ID}"
-              ]]
-            ])
-          } catch (Exception ignored) {
-            checkout([
-              $class: 'GitSCM',
-              branches: [[name: '*/main']],
-              userRemoteConfigs: [[url: "${env.GIT_REPO_URL}"]]
-            ])
+          def branchesToTry = ['*/main', '*/master']
+          def checkedOut = false
+
+          for (branchSpec in branchesToTry) {
+            if (checkedOut) {
+              break
+            }
+
+            try {
+              checkout([
+                $class: 'GitSCM',
+                branches: [[name: branchSpec]],
+                userRemoteConfigs: [[
+                  url: "${env.GIT_REPO_URL}",
+                  credentialsId: "${env.GITHUB_CREDENTIALS_ID}"
+                ]]
+              ])
+              checkedOut = true
+            } catch (Exception ignored) {
+              try {
+                checkout([
+                  $class: 'GitSCM',
+                  branches: [[name: branchSpec]],
+                  userRemoteConfigs: [[url: "${env.GIT_REPO_URL}"]]
+                ])
+                checkedOut = true
+              } catch (Exception ignoredAgain) {
+                // Continue trying next branch.
+              }
+            }
+          }
+
+          if (!checkedOut) {
+            error('Checkout failed for both main and master branches.')
           }
         }
       }
