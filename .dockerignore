@@ -1,0 +1,12 @@
+.git
+.gitignore
+.next
+coverage
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+docker.txt
+token
+token.txt
+my-next-app
