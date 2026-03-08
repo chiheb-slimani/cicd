@@ -45,6 +45,7 @@ next-env.d.ts
 token
 token.txt
 docker.txt
+jenkins.txt
 *.secret
 *.secrets
 

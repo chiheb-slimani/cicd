@@ -84,14 +84,14 @@ Validated successfully:
 Jenkins can run in Docker Toolbox with:
 
 ```bash
-docker run -d --name jenkins-cicd --security-opt seccomp=unconfined -u root -e JAVA_OPTS="-Xms256m -Xmx1024m" -e JENKINS_HOME=/tmp/jenkins_home -p 8080:8080 -p 50000:50000 jenkins/jenkins:lts-jdk11
+docker run -d --name jenkins-cicd --restart unless-stopped --security-opt seccomp=unconfined -u root -e JAVA_OPTS="-Xms256m -Xmx1024m" -v jenkins_home:/var/jenkins_home -p 8080:8080 -p 50000:50000 jenkins/jenkins:lts-jdk17
 ```
 
 Why this profile:
 
-- Docker Toolbox uses old Docker/Kernel versions.
-- `lts-jdk17` failed in this VM.
-- `lts-jdk11` + `seccomp=unconfined` worked in this environment.
+- Your plugins require Jenkins core `>= 2.479.3`.
+- `lts-jdk17` gives a compatible core (validated on `2.541.2`).
+- `seccomp=unconfined` helps compatibility with Docker Toolbox constraints.
 
 ## 9) If you want to rerun everything quickly
 

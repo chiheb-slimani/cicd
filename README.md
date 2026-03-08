@@ -91,16 +91,17 @@ This is required because Docker is not expected to work in a default terminal co
 
 ### Jenkins In Container (No Local Jenkins Install)
 
-For Docker Toolbox environments, this profile worked in validation:
+For Docker Toolbox environments, use this profile:
 
 ```bash
-docker run -d --name jenkins-cicd --security-opt seccomp=unconfined -u root -e JAVA_OPTS="-Xms256m -Xmx1024m" -e JENKINS_HOME=/tmp/jenkins_home -p 8080:8080 -p 50000:50000 jenkins/jenkins:lts-jdk11
+docker run -d --name jenkins-cicd --restart unless-stopped --security-opt seccomp=unconfined -u root -e JAVA_OPTS="-Xms256m -Xmx1024m" -v jenkins_home:/var/jenkins_home -p 8080:8080 -p 50000:50000 jenkins/jenkins:lts-jdk17
 ```
 
 Notes:
 
-- `jenkins/jenkins:lts-jdk17` failed in this Toolbox VM due runtime thread/resource constraints.
-- `lts-jdk11` with `seccomp=unconfined` is the compatible fallback used here.
+- Jenkins core must be recent enough for modern plugins (`>= 2.479.3`).
+- `jenkins/jenkins:lts-jdk17` provides a compatible core (validated here on Jenkins `2.541.2`).
+- If your VM is small, increase Docker Toolbox VM memory/CPU before running Jenkins.
 
 ## Security
 
