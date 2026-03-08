@@ -10,6 +10,10 @@ Production-ready Next.js repository with a Jenkins pipeline that runs:
 - Docker image build
 - Docker image push on `main`
 
+Beginner walkthrough:
+
+- `BEGINNER_GUIDE.md`
+
 ## Local Setup
 
 ```bash
@@ -84,6 +88,19 @@ for /f "tokens=*" %%i in ('docker-machine env --shell cmd default') do @%%i
 ```
 
 This is required because Docker is not expected to work in a default terminal context.
+
+### Jenkins In Container (No Local Jenkins Install)
+
+For Docker Toolbox environments, this profile worked in validation:
+
+```bash
+docker run -d --name jenkins-cicd --security-opt seccomp=unconfined -u root -e JAVA_OPTS="-Xms256m -Xmx1024m" -e JENKINS_HOME=/tmp/jenkins_home -p 8080:8080 -p 50000:50000 jenkins/jenkins:lts-jdk11
+```
+
+Notes:
+
+- `jenkins/jenkins:lts-jdk17` failed in this Toolbox VM due runtime thread/resource constraints.
+- `lts-jdk11` with `seccomp=unconfined` is the compatible fallback used here.
 
 ## Security
 
