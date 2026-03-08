@@ -32,6 +32,16 @@ pipeline {
       defaultValue: true,
       description: 'Bring up Prometheus + Grafana + cAdvisor monitoring stack.'
     )
+    booleanParam(
+      name: 'ENABLE_SONARQUBE_ANALYSIS',
+      defaultValue: true,
+      description: 'Run SonarQube static code analysis with containerized scanner.'
+    )
+    booleanParam(
+      name: 'SONAR_FAIL_PIPELINE',
+      defaultValue: false,
+      description: 'Fail build on SonarQube analysis errors/quality gate problems.'
+    )
   }
 
   environment {
@@ -39,16 +49,20 @@ pipeline {
     GITHUB_CREDENTIALS_ID = 'github-token'
     DOCKERHUB_CREDENTIALS_ID = 'dockerhub-creds'
     NEXUS_CREDENTIALS_ID = 'nexus-creds'
+    SONARQUBE_TOKEN_CREDENTIALS_ID = 'sonarqube-token'
     DOCKER_IMAGE = 'cicd-nextjs'
     TRIVY_IMAGE = 'aquasec/trivy:0.57.1'
     TRIVY_SEVERITY = 'HIGH,CRITICAL'
+    SONAR_SCANNER_IMAGE = 'sonarsource/sonar-scanner-cli:5.0.1'
+    SONAR_HOST_URL = 'http://sonarqube-cicd:9000'
+    SONAR_PROJECT_KEY = 'cicd-nextjs'
     APP_CONTAINER_NAME = 'cicd-nextjs-live'
     APP_DEPLOY_PORT = '3002'
     MONITORING_NETWORK = 'cicd-monitoring'
     PROMETHEUS_IMAGE = 'cicd/prometheus-cicd:latest'
     GRAFANA_IMAGE = 'cicd/grafana-cicd:latest'
-    NEXUS_URL = ''
-    NEXUS_REPOSITORY = ''
+    NEXUS_URL = 'http://nexus-cicd:8081'
+    NEXUS_REPOSITORY = 'cicd-artifacts'
     GRAFANA_ADMIN_USER = 'admin'
     GRAFANA_ADMIN_PASSWORD = 'admin123'
   }
@@ -143,6 +157,98 @@ pipeline {
             sh 'npm run build'
           } else {
             bat 'npm run build'
+          }
+        }
+      }
+    }
+
+    stage('SonarQube Server Up') {
+      when {
+        expression {
+          return params.ENABLE_SONARQUBE_ANALYSIS
+        }
+      }
+      steps {
+        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+          script {
+            if (isUnix()) {
+              sh 'sh scripts/sonarqube-up.sh'
+            } else {
+              echo 'SonarQube server stage is configured for Unix Jenkins agents and was skipped on Windows.'
+            }
+          }
+        }
+      }
+    }
+
+    stage('SonarQube Analysis') {
+      when {
+        expression {
+          return params.ENABLE_SONARQUBE_ANALYSIS
+        }
+      }
+      steps {
+        script {
+          if (isUnix()) {
+            if (params.SONAR_FAIL_PIPELINE) {
+              withCredentials([
+                string(credentialsId: "${env.SONARQUBE_TOKEN_CREDENTIALS_ID}", variable: 'SONAR_TOKEN')
+              ]) {
+                sh '''
+set -eu
+docker network inspect ${MONITORING_NETWORK} >/dev/null 2>&1 || docker network create ${MONITORING_NETWORK} >/dev/null
+docker network connect ${MONITORING_NETWORK} jenkins-cicd >/dev/null 2>&1 || true
+WORKDIR="$(pwd)"
+docker run --rm \
+  --network ${MONITORING_NETWORK} \
+  --volumes-from "$HOSTNAME" \
+  -w "$WORKDIR" \
+  -e SONAR_HOST_URL="${SONAR_HOST_URL}" \
+  -e SONAR_TOKEN="${SONAR_TOKEN}" \
+  ${SONAR_SCANNER_IMAGE} \
+  -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+  -Dsonar.projectName=${SONAR_PROJECT_KEY} \
+  -Dsonar.projectVersion=${BUILD_NUMBER} \
+  -Dsonar.sources=app,lib \
+  -Dsonar.tests=app \
+  -Dsonar.test.inclusions=**/*.test.tsx \
+  -Dsonar.exclusions=**/.next/**,**/node_modules/**,**/coverage/** \
+  -Dsonar.qualitygate.wait=true \
+  -Dsonar.qualitygate.timeout=300
+'''
+              }
+            } else {
+              catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                withCredentials([
+                  string(credentialsId: "${env.SONARQUBE_TOKEN_CREDENTIALS_ID}", variable: 'SONAR_TOKEN')
+                ]) {
+                  sh '''
+set -eu
+docker network inspect ${MONITORING_NETWORK} >/dev/null 2>&1 || docker network create ${MONITORING_NETWORK} >/dev/null
+docker network connect ${MONITORING_NETWORK} jenkins-cicd >/dev/null 2>&1 || true
+WORKDIR="$(pwd)"
+docker run --rm \
+  --network ${MONITORING_NETWORK} \
+  --volumes-from "$HOSTNAME" \
+  -w "$WORKDIR" \
+  -e SONAR_HOST_URL="${SONAR_HOST_URL}" \
+  -e SONAR_TOKEN="${SONAR_TOKEN}" \
+  ${SONAR_SCANNER_IMAGE} \
+  -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+  -Dsonar.projectName=${SONAR_PROJECT_KEY} \
+  -Dsonar.projectVersion=${BUILD_NUMBER} \
+  -Dsonar.sources=app,lib \
+  -Dsonar.tests=app \
+  -Dsonar.test.inclusions=**/*.test.tsx \
+  -Dsonar.exclusions=**/.next/**,**/node_modules/**,**/coverage/** \
+  -Dsonar.qualitygate.wait=true \
+  -Dsonar.qualitygate.timeout=300
+'''
+                }
+              }
+            }
+          } else {
+            echo 'SonarQube analysis stage is configured for Unix Jenkins agents and was skipped on Windows.'
           }
         }
       }

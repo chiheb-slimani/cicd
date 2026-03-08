@@ -115,6 +115,7 @@ This keeps Docker machine files (including `disk.vmdk`, Jenkins data) on `D:` wh
 The core working pipeline was kept, then extra stages were added safely:
 
 - Trivy image security scan (containerized)
+- SonarQube server + Sonar analysis (containerized)
 - Package artifact (`npm pack`)
 - Optional Nexus upload
 - Local deploy container stage
@@ -177,9 +178,39 @@ Default Grafana login:
 
 - `ENABLE_TRIVY_SCAN`
 - `TRIVY_FAIL_ON_FINDINGS`
+- `ENABLE_SONARQUBE_ANALYSIS`
+- `SONAR_FAIL_PIPELINE`
 - `ENABLE_PACKAGE_ARTIFACT`
 - `ENABLE_NEXUS_UPLOAD`
 - `ENABLE_LOCAL_DEPLOY`
 - `ENABLE_MONITORING`
 
 This lets you enable/disable advanced stages without breaking the base CI flow.
+
+## 15) One-command Nexus + SonarQube setup
+
+Run:
+
+```bash
+node scripts/setup-nexus-sonar.js
+```
+
+It will:
+
+- start `nexus-cicd` on port `8082`
+- start `sonarqube-cicd` on port `9000`
+- create Nexus raw repo: `cicd-artifacts`
+- sync Jenkins credentials:
+  - `nexus-creds`
+  - `sonarqube-token`
+- generate local secret file: `nexus.txt`
+
+`nexus.txt` includes:
+
+- Nexus URL
+- Nexus default admin password (if available)
+- Nexus CI username/password
+- SonarQube URL
+- SonarQube token
+
+This file is ignored by git and must stay local only.

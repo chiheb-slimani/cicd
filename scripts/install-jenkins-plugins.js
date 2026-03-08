@@ -56,7 +56,7 @@ async function main() {
     (pluginJson.plugins || []).map((p) => [p.shortName, Boolean(p.active && p.enabled)]),
   );
 
-  const required = ["pipeline-stage-view", "pipeline-graph-view", "prometheus"];
+  const required = ["pipeline-stage-view", "pipeline-graph-view", "prometheus", "sonar"];
   const missing = required.filter((p) => !installed.get(p));
   if (missing.length === 0) {
     console.log("PLUGINS_ALREADY_OK");

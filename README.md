@@ -21,11 +21,12 @@ Core stages (always):
 Extended stages (parameter-driven, containerized):
 
 1. Trivy image scan
-2. Package artifact (`npm pack`)
-3. Optional Nexus upload
-4. Local deploy container
-5. Monitoring stack up (Prometheus + Grafana + cAdvisor)
-6. Monitoring health checks
+2. SonarQube server up + code analysis
+3. Package artifact (`npm pack`)
+4. Optional Nexus upload
+5. Local deploy container
+6. Monitoring stack up (Prometheus + Grafana + cAdvisor)
+7. Monitoring health checks
 
 No Ansible is used.
 
@@ -100,6 +101,24 @@ Default Grafana credentials (change in Jenkins/env for production):
 - user: `admin`
 - password: `admin123`
 
+## Nexus + SonarQube Bootstrap
+
+Automatic local setup script:
+
+```bash
+node scripts/setup-nexus-sonar.js
+```
+
+What it does:
+
+- starts `nexus-cicd` container on port `8082`
+- starts `sonarqube-cicd` container on port `9000`
+- creates Nexus raw repo `cicd-artifacts`
+- syncs Jenkins credentials:
+  - `nexus-creds`
+  - `sonarqube-token`
+- generates local secret file `nexus.txt` (ignored by git)
+
 ## Jenkins Pipeline
 
 Pipeline file:
@@ -132,6 +151,7 @@ Install helper script:
 1. `github-token` (GitHub token or username/password credential)
 2. `dockerhub-creds` (Docker Hub username/password)
 3. `nexus-creds` (optional; only if Nexus upload is enabled)
+4. `sonarqube-token` (optional; used by SonarQube analysis stage)
 
 ### Jenkins Runtime Context (Docker Toolbox)
 
@@ -151,6 +171,8 @@ Sensitive local files are ignored and must never be committed:
 - `token.txt`
 - `docker.txt`
 - `jenkins.txt`
+- `nexus.txt`
+- `sonar.txt`
 - `.env*`
 
 Also protected by `.dockerignore` so secrets are not sent to Docker build context.

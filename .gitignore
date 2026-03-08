@@ -46,6 +46,8 @@ token
 token.txt
 docker.txt
 jenkins.txt
+nexus.txt
+sonar.txt
 *.secret
 *.secrets
 
