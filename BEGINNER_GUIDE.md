@@ -109,3 +109,69 @@ To avoid filling `C:`, Docker Toolbox machine storage was configured on `D:`:
 - `C:\Users\lenovo\.docker\machine` linked to `D:\docker-machine`
 
 This keeps Docker machine files (including `disk.vmdk`, Jenkins data) on `D:` while keeping the same machine name (`default`) so the pipeline still works.
+
+## 11) Pipeline was extended (inspired by enterprise flow, no Ansible)
+
+The core working pipeline was kept, then extra stages were added safely:
+
+- Trivy image security scan (containerized)
+- Package artifact (`npm pack`)
+- Optional Nexus upload
+- Local deploy container stage
+- Monitoring stack bring-up and health checks
+
+Important: existing core stages were not removed.
+
+## 12) Real monitoring was added (Prometheus + Grafana + cAdvisor)
+
+Monitoring files added:
+
+- `monitoring/prometheus/Dockerfile`
+- `monitoring/prometheus/prometheus.yml`
+- `monitoring/grafana/Dockerfile`
+- `monitoring/grafana/provisioning/datasources/datasource.yml`
+- `monitoring/grafana/provisioning/dashboards/dashboard.yml`
+- `monitoring/grafana/dashboards/cicd-overview.json`
+- `scripts/monitoring-up.sh`
+- `scripts/monitoring-health.sh`
+
+The app now exposes metrics at:
+
+- `/api/metrics`
+
+This is implemented with:
+
+- `lib/metrics.ts`
+- `app/api/metrics/route.ts`
+
+## 13) How to run monitoring manually
+
+From Docker host context (Docker Toolbox VM):
+
+```bash
+sh scripts/monitoring-up.sh
+sh scripts/monitoring-health.sh
+```
+
+Default ports:
+
+- Grafana: `3000`
+- Prometheus: `9090`
+- cAdvisor: `8081`
+- App container (local deploy): `3002`
+
+Default Grafana login:
+
+- user: `admin`
+- password: `admin123`
+
+## 14) Jenkins parameters you can control per build
+
+- `ENABLE_TRIVY_SCAN`
+- `TRIVY_FAIL_ON_FINDINGS`
+- `ENABLE_PACKAGE_ARTIFACT`
+- `ENABLE_NEXUS_UPLOAD`
+- `ENABLE_LOCAL_DEPLOY`
+- `ENABLE_MONITORING`
+
+This lets you enable/disable advanced stages without breaking the base CI flow.

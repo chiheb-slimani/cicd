@@ -1,18 +1,33 @@
 # CI/CD Next.js Project
 
-Production-ready Next.js repository with a Jenkins pipeline that runs:
-
-- checkout
-- npm install (`npm ci`)
-- lint
-- test
-- build
-- Docker image build
-- Docker image push on `main`
+Production-ready Next.js repository with an extended Jenkins CI/CD pipeline.
 
 Beginner walkthrough:
 
 - `BEGINNER_GUIDE.md`
+
+## What The Pipeline Runs
+
+Core stages (always):
+
+1. Checkout
+2. Install (`npm ci`)
+3. Lint
+4. Test
+5. Build
+6. Docker Build
+7. Docker Push (optional on `main` when `ENABLE_DOCKER_PUSH=true`)
+
+Extended stages (parameter-driven, containerized):
+
+1. Trivy image scan
+2. Package artifact (`npm pack`)
+3. Optional Nexus upload
+4. Local deploy container
+5. Monitoring stack up (Prometheus + Grafana + cAdvisor)
+6. Monitoring health checks
+
+No Ansible is used.
 
 ## Local Setup
 
@@ -23,35 +38,59 @@ npm test
 npm run build
 ```
 
-Run app locally:
+Run app:
 
 ```bash
 npm run dev
 ```
 
-## Test Stack
+Prometheus endpoint (app metrics):
 
-- Jest
-- `@testing-library/react`
-- `@testing-library/jest-dom`
-
-Test file:
-
-- `app/page.test.tsx`
+```text
+/api/metrics
+```
 
 ## Docker
 
-Build image:
+Build app image:
 
 ```bash
 docker build -t cicd-nextjs:local .
 ```
 
-Run image:
+Run app image:
 
 ```bash
 docker run -p 3000:3000 cicd-nextjs:local
 ```
+
+## Monitoring Stack
+
+Monitoring assets:
+
+- `monitoring/prometheus/*`
+- `monitoring/grafana/*`
+- `scripts/monitoring-up.sh`
+- `scripts/monitoring-health.sh`
+
+Bring up stack manually (Docker host / Docker Toolbox VM):
+
+```bash
+sh scripts/monitoring-up.sh
+sh scripts/monitoring-health.sh
+```
+
+Default ports:
+
+- Grafana: `3000`
+- Prometheus: `9090`
+- cAdvisor: `8081`
+- deployed app container: `3002` (container port `3000`)
+
+Default Grafana credentials (change in Jenkins/env for production):
+
+- user: `admin`
+- password: `admin123`
 
 ## Jenkins Pipeline
 
@@ -63,7 +102,8 @@ Pipeline file:
 
 - Git
 - Node.js 20.x + npm
-- Docker Toolbox (`docker-machine`, Docker CLI)
+- Docker CLI (inside Jenkins container with mounted Docker socket)
+- Docker Toolbox machine `default` on host
 
 ### Jenkins Plugins Required
 
@@ -71,37 +111,29 @@ Pipeline file:
 - Git
 - Credentials
 - Credentials Binding
+- Pipeline Stage View
+- Pipeline Graph View
+- Prometheus (for `/prometheus` endpoint)
+
+Install helper script:
+
+- `node scripts/install-jenkins-plugins.js`
 
 ### Jenkins Credentials Required
 
-Create these credentials in Jenkins:
-
-1. `github-token` (Secret text or Username/Password for GitHub access)
-2. `dockerhub-creds` (Username/Password for Docker Hub)
+1. `github-token` (GitHub token or username/password credential)
+2. `dockerhub-creds` (Docker Hub username/password)
+3. `nexus-creds` (optional; only if Nexus upload is enabled)
 
 ### Jenkins Runtime Context (Docker Toolbox)
 
-Docker commands in the pipeline run with Docker Toolbox context via:
-
-```bat
-for /f "tokens=*" %%i in ('docker-machine env --shell cmd default') do @%%i
-```
-
-This is required because Docker is not expected to work in a default terminal context.
+Docker must run through Docker Toolbox VM (`default`) on this laptop.
 
 ### Jenkins In Container (No Local Jenkins Install)
 
-For Docker Toolbox environments, use this profile:
-
 ```bash
-docker run -d --name jenkins-cicd --restart unless-stopped --security-opt seccomp=unconfined -u root -e JAVA_OPTS="-Xms256m -Xmx1024m" -v jenkins_home:/var/jenkins_home -p 8080:8080 -p 50000:50000 jenkins/jenkins:lts-jdk17
+docker run -d --name jenkins-cicd --restart unless-stopped --security-opt seccomp=unconfined -u root -e JAVA_OPTS="-Xms256m -Xmx1024m" -v jenkins_home:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 -p 50000:50000 jenkins/jenkins:lts-jdk17
 ```
-
-Notes:
-
-- Jenkins core must be recent enough for modern plugins (`>= 2.479.3`).
-- `jenkins/jenkins:lts-jdk17` provides a compatible core (validated here on Jenkins `2.541.2`).
-- If your VM is small, increase Docker Toolbox VM memory/CPU before running Jenkins.
 
 ## Security
 
@@ -110,6 +142,7 @@ Sensitive local files are ignored and must never be committed:
 - `token`
 - `token.txt`
 - `docker.txt`
+- `jenkins.txt`
 - `.env*`
 
-Also protected by `.dockerignore` to avoid sending secrets in Docker build context.
+Also protected by `.dockerignore` so secrets are not sent to Docker build context.

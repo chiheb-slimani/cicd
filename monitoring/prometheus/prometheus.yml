@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["prometheus-cicd:9090"]
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor-cicd:8080"]
+
+  - job_name: nextjs-app
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ["cicd-nextjs-live:3000"]
+
+  - job_name: jenkins
+    metrics_path: /prometheus
+    static_configs:
+      - targets: ["jenkins-cicd:8080"]
