@@ -100,3 +100,12 @@ Use Docker Toolbox shell / VM context and run:
 ```bash
 docker-machine ssh default sh -lc "rm -rf /tmp/cicd-ci && mkdir -p /tmp/cicd-ci && tar -C /c/Users/lenovo/Desktop/bootcamp/cicd -cf - . | tar -C /tmp/cicd-ci -xf - && docker run --rm -v /tmp/cicd-ci:/workspace -w /workspace node:20-alpine sh -lc 'npm ci && npm run lint && npm test && npm run build'"
 ```
+
+## 10) Disk space safety (`D:` instead of `C:`)
+
+To avoid filling `C:`, Docker Toolbox machine storage was configured on `D:`:
+
+- `MACHINE_STORAGE_PATH` user env var set to `D:\docker-machine`
+- `C:\Users\lenovo\.docker\machine` linked to `D:\docker-machine`
+
+This keeps Docker machine files (including `disk.vmdk`, Jenkins data) on `D:` while keeping the same machine name (`default`) so the pipeline still works.
