@@ -56,6 +56,7 @@ pipeline {
     SONAR_SCANNER_IMAGE = 'sonarsource/sonar-scanner-cli:5.0.1'
     SONAR_HOST_URL = 'http://sonarqube-cicd:9000'
     SONAR_PROJECT_KEY = 'cicd-nextjs'
+    SONAR_READY = 'false'
     APP_CONTAINER_NAME = 'cicd-nextjs-live'
     APP_DEPLOY_PORT = '3002'
     MONITORING_NETWORK = 'cicd-monitoring'
@@ -169,10 +170,14 @@ pipeline {
         }
       }
       steps {
+        script {
+          env.SONAR_READY = 'false'
+        }
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
           script {
             if (isUnix()) {
               sh 'sh scripts/sonarqube-up.sh'
+              env.SONAR_READY = 'true'
             } else {
               echo 'SonarQube server stage is configured for Unix Jenkins agents and was skipped on Windows.'
             }
@@ -184,7 +189,7 @@ pipeline {
     stage('SonarQube Analysis') {
       when {
         expression {
-          return params.ENABLE_SONARQUBE_ANALYSIS
+          return params.ENABLE_SONARQUBE_ANALYSIS && env.SONAR_READY == 'true'
         }
       }
       steps {
