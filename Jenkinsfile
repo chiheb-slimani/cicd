@@ -57,43 +57,81 @@ pipeline {
 
     stage('Install') {
       steps {
-        bat 'npm ci'
+        script {
+          if (isUnix()) {
+            sh 'npm ci'
+          } else {
+            bat 'npm ci'
+          }
+        }
       }
     }
 
     stage('Lint') {
       steps {
-        bat 'npm run lint'
+        script {
+          if (isUnix()) {
+            sh 'npm run lint'
+          } else {
+            bat 'npm run lint'
+          }
+        }
       }
     }
 
     stage('Test') {
       steps {
-        bat 'npm test'
+        script {
+          if (isUnix()) {
+            sh 'npm test'
+          } else {
+            bat 'npm test'
+          }
+        }
       }
     }
 
     stage('Build') {
       steps {
-        bat 'npm run build'
+        script {
+          if (isUnix()) {
+            sh 'npm run build'
+          } else {
+            bat 'npm run build'
+          }
+        }
       }
     }
 
     stage('Docker Build') {
       steps {
-        bat '''
+        script {
+          if (isUnix()) {
+            sh '''
+docker version
+docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
+'''
+          } else {
+            bat '''
 @echo off
 where docker-machine >NUL 2>&1 || (echo docker-machine is required for Docker Toolbox && exit /b 1)
 for /f "tokens=*" %%i in ('docker-machine env --shell cmd default') do @%%i
 docker version
 docker build -t %DOCKER_IMAGE%:%BUILD_NUMBER% .
 '''
+          }
+        }
       }
     }
 
     stage('Docker Push') {
       when {
-        branch 'main'
+        allOf {
+          branch 'main'
+          expression {
+            return env.ENABLE_DOCKER_PUSH == 'true'
+          }
+        }
       }
       steps {
         withCredentials([
@@ -103,7 +141,19 @@ docker build -t %DOCKER_IMAGE%:%BUILD_NUMBER% .
             passwordVariable: 'DOCKER_PASS'
           )
         ]) {
-          bat '''
+          script {
+            if (isUnix()) {
+              sh '''
+IMAGE=${DOCKER_USER}/${DOCKER_IMAGE}
+echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
+docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${IMAGE}:${BUILD_NUMBER}
+docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${IMAGE}:latest
+docker push ${IMAGE}:${BUILD_NUMBER}
+docker push ${IMAGE}:latest
+docker logout
+'''
+            } else {
+              bat '''
 @echo off
 for /f "tokens=*" %%i in ('docker-machine env --shell cmd default') do @%%i
 set IMAGE=%DOCKER_USER%/%DOCKER_IMAGE%
@@ -114,6 +164,8 @@ docker push %IMAGE%:%BUILD_NUMBER%
 docker push %IMAGE%:latest
 docker logout
 '''
+            }
+          }
         }
       }
     }
