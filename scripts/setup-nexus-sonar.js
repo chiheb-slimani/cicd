@@ -274,7 +274,7 @@ async function ensureSonarQube(ip, targetPass) {
 
   const exists = dockerMachineSSH("docker ps -a --format '{{.Names}}' | grep -x sonarqube-cicd >/dev/null 2>&1 && echo yes || echo no");
   if (exists !== "yes") {
-    dockerMachineSSH("docker run -d --name sonarqube-cicd --restart unless-stopped --network cicd-monitoring -p 9000:9000 -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true -v sonarqube_data:/opt/sonarqube/data -v sonarqube_logs:/opt/sonarqube/logs -v sonarqube_extensions:/opt/sonarqube/extensions sonarqube:lts-community >/dev/null");
+    dockerMachineSSH("docker run -d --name sonarqube-cicd --restart unless-stopped --network cicd-monitoring --security-opt seccomp=unconfined -p 9000:9000 -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true -v sonarqube_data:/opt/sonarqube/data -v sonarqube_logs:/opt/sonarqube/logs -v sonarqube_extensions:/opt/sonarqube/extensions sonarqube:lts-community >/dev/null");
   } else {
     dockerMachineSSH("docker start sonarqube-cicd >/dev/null 2>&1 || true");
     dockerMachineSSH("docker network connect cicd-monitoring sonarqube-cicd >/dev/null 2>&1 || true");
@@ -287,31 +287,21 @@ async function ensureSonarQube(ip, targetPass) {
     5000,
   );
 
-  let adminPass = targetPass;
-  let validateRes = await sonarRequest(baseUrl, "/api/authentication/validate", "admin", targetPass);
-  if (validateRes.status !== 200) {
+  let adminPass = "";
+  const targetRes = await sonarRequest(baseUrl, "/api/authentication/validate", "admin", targetPass);
+  if (targetRes.status === 200) {
+    const targetBody = await targetRes.json();
+    if (targetBody.valid) adminPass = targetPass;
+  }
+  if (!adminPass) {
     const defaultRes = await sonarRequest(baseUrl, "/api/authentication/validate", "admin", "admin");
     if (defaultRes.status === 200) {
-      const changeRes = await sonarRequest(
-        baseUrl,
-        "/api/users/change_password",
-        "admin",
-        "admin",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: `login=admin&previousPassword=admin&password=${encodeURIComponent(targetPass)}`,
-        },
-      );
-      if (![200, 204].includes(changeRes.status)) {
-        throw new Error(`Failed changing SonarQube admin password (HTTP ${changeRes.status}).`);
-      }
-      adminPass = targetPass;
-    } else {
-      throw new Error("Could not authenticate to SonarQube with admin credentials.");
+      const defaultBody = await defaultRes.json();
+      if (defaultBody.valid) adminPass = "admin";
     }
+  }
+  if (!adminPass) {
+    throw new Error("Could not authenticate to SonarQube with known admin credentials.");
   }
 
   // Revoke old token if it exists, ignore failures.

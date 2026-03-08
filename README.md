@@ -156,6 +156,7 @@ Install helper script:
 ### Jenkins Runtime Context (Docker Toolbox)
 
 Docker must run through Docker Toolbox VM (`default`) on this laptop.
+For Docker Toolbox engine `19.x`, SonarQube requires `--security-opt seccomp=unconfined` (already handled by project scripts).
 
 ### Jenkins In Container (No Local Jenkins Install)
 

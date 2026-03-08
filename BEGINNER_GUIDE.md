@@ -92,6 +92,7 @@ Why this profile:
 - Your plugins require Jenkins core `>= 2.479.3`.
 - `lts-jdk17` gives a compatible core (validated on `2.541.2`).
 - `seccomp=unconfined` helps compatibility with Docker Toolbox constraints.
+- SonarQube container also needs `--security-opt seccomp=unconfined` on Docker Toolbox (handled by `scripts/sonarqube-up.sh` and `scripts/setup-nexus-sonar.js`).
 
 ## 9) If you want to rerun everything quickly
 

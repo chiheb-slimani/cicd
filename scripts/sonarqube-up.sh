@@ -21,6 +21,7 @@ else
     --name "$SONAR_CONTAINER_NAME" \
     --restart unless-stopped \
     --network "$MONITORING_NETWORK" \
+    --security-opt seccomp=unconfined \
     -p 9000:9000 \
     -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
     -v sonarqube_data:/opt/sonarqube/data \
