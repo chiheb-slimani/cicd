@@ -81,10 +81,17 @@ async function main() {
     triggerHeaders.Cookie = crumbCookie.split(";")[0];
   }
 
-  const triggerRes = await jenkinsFetch("/job/cicd-pipeline/build", {
+  let triggerRes = await jenkinsFetch("/job/cicd-pipeline/build", {
     method: "POST",
     headers: triggerHeaders,
   });
+
+  if (triggerRes.status === 400 || triggerRes.status === 404) {
+    triggerRes = await jenkinsFetch("/job/cicd-pipeline/buildWithParameters", {
+      method: "POST",
+      headers: triggerHeaders,
+    });
+  }
 
   if (![201, 302].includes(triggerRes.status)) {
     throw new Error(

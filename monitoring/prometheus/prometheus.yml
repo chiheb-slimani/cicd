@@ -15,8 +15,3 @@ scrape_configs:
     metrics_path: /api/metrics
     static_configs:
       - targets: ["cicd-nextjs-live:3000"]
-
-  - job_name: jenkins
-    metrics_path: /prometheus
-    static_configs:
-      - targets: ["jenkins-cicd:8080"]

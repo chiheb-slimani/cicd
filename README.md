@@ -73,6 +73,14 @@ Monitoring assets:
 - `scripts/monitoring-up.sh`
 - `scripts/monitoring-health.sh`
 
+Default scrape targets in Prometheus:
+
+- Prometheus itself
+- cAdvisor (container metrics)
+- Next.js app (`/api/metrics`)
+
+Jenkins metrics scrape can be enabled later with authenticated Prometheus config if you want to include `/prometheus`.
+
 Bring up stack manually (Docker host / Docker Toolbox VM):
 
 ```bash

@@ -139,6 +139,14 @@ The app now exposes metrics at:
 
 - `/api/metrics`
 
+Default Prometheus targets:
+
+- Prometheus
+- cAdvisor
+- Next.js app
+
+Note: Jenkins `/prometheus` endpoint usually needs auth; it can be added later with authenticated Prometheus config.
+
 This is implemented with:
 
 - `lib/metrics.ts`
