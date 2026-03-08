@@ -289,13 +289,15 @@ docker build -t %DOCKER_IMAGE%:%BUILD_NUMBER% .
       steps {
         script {
           if (isUnix()) {
-            withEnv(["TRIVY_FAIL_ON_FINDINGS=${params.TRIVY_FAIL_ON_FINDINGS}"]) {
-              sh '''
+            def runTrivy = {
+              withEnv(["TRIVY_FAIL_ON_FINDINGS=${params.TRIVY_FAIL_ON_FINDINGS}"]) {
+                sh '''
 set +e
 docker run --rm \
   -v /var/run/docker.sock:/var/run/docker.sock \
   ${TRIVY_IMAGE} image \
   --no-progress \
+  --timeout 8m \
   --severity ${TRIVY_SEVERITY} \
   --ignore-unfixed \
   --exit-code 1 \
@@ -311,6 +313,18 @@ if [ "$TRIVY_EXIT" -ne 0 ]; then
   echo "Trivy found vulnerabilities but build continues (TRIVY_FAIL_ON_FINDINGS=false)."
 fi
 '''
+              }
+            }
+            if (params.TRIVY_FAIL_ON_FINDINGS) {
+              timeout(time: 10, unit: 'MINUTES') {
+                runTrivy()
+              }
+            } else {
+              catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                timeout(time: 10, unit: 'MINUTES') {
+                  runTrivy()
+                }
+              }
             }
           } else {
             echo 'Trivy scan stage is configured for Unix Jenkins agents and was skipped on Windows.'
